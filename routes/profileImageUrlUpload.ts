@@ -17,11 +17,22 @@ export function profileImageUrlUpload () {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (req.body.imageUrl !== undefined) {
       const url = req.body.imageUrl
+      const allowedHostnames = ['example.com', 'images.example.com'] // Add trusted hostnames here
+      let parsedUrl
+      try {
+        parsedUrl = new URL(url)
+        if (!allowedHostnames.includes(parsedUrl.hostname)) {
+          throw new Error('Blocked unsafe URL: hostname not allowed')
+        }
+      } catch (error) {
+        next(new Error('Invalid or unsafe URL provided'))
+        return
+      }
       if (url.match(/(.)*solve\/challenges\/server-side(.)*/) !== null) req.app.locals.abused_ssrf_bug = true
       const loggedInUser = security.authenticatedUsers.get(req.cookies.token)
       if (loggedInUser) {
         try {
-          const response = await fetch(url)
+          const response = await fetch(parsedUrl.toString())
           if (!response.ok || !response.body) {
             throw new Error('url returned a non-OK status code or an empty body')
           }
